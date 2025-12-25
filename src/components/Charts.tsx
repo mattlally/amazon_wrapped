@@ -10,7 +10,7 @@ interface ChartsProps {
   onMonthClick?: (month: string | null) => void;
 }
 
-export function Charts({ transactions, filters, onPersonClick, onMonthClick }: ChartsProps) {
+export function Charts({ transactions, onPersonClick, onMonthClick }: ChartsProps) {
   // Person data
   const personData = useMemo(() => {
     const personMap = new Map<string, { spend: number; orders: number }>();
@@ -79,27 +79,6 @@ export function Charts({ transactions, filters, onPersonClick, onMonthClick }: C
     };
   }, [transactions]);
 
-  // Category data (excluding discretionary)
-  const categoryData = useMemo(() => {
-    const catMap = new Map<string, { spend: number; orders: number }>();
-
-    transactions.forEach((t) => {
-      if (t.category === 'discretionary') return; // Exclude discretionary
-      const existing = catMap.get(t.category) || { spend: 0, orders: 0 };
-      // Total Spend = total_total - refund (for each transaction)
-      existing.spend += t.total_total - t.refund;
-      existing.orders += t.order_count;
-      catMap.set(t.category, existing);
-    });
-
-    const categories = Array.from(catMap.keys()).sort();
-    return {
-      categories,
-      spend: categories.map((c) => catMap.get(c)!.spend),
-      orders: categories.map((c) => catMap.get(c)!.orders),
-    };
-  }, [transactions]);
-
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -108,19 +87,6 @@ export function Charts({ transactions, filters, onPersonClick, onMonthClick }: C
     }).format(value);
   };
 
-  // Generate green shades
-  const getGreenShades = (count: number) => {
-    const shades = [];
-    const baseGreen = [29, 185, 84]; // #1DB954 RGB
-    for (let i = 0; i < count; i++) {
-      const factor = 0.6 + (i / count) * 0.4; // Range from 60% to 100% brightness
-      const r = Math.round(baseGreen[0] * factor);
-      const g = Math.round(baseGreen[1] * factor);
-      const b = Math.round(baseGreen[2] * factor);
-      shades.push(`rgb(${r}, ${g}, ${b})`);
-    }
-    return shades;
-  };
 
   const chartLayout = {
     autosize: true,
@@ -141,36 +107,38 @@ export function Charts({ transactions, filters, onPersonClick, onMonthClick }: C
           <div className="bg-white rounded-lg shadow p-4">
             <h3 className="text-lg font-semibold mb-4">Spend by Person</h3>
             <Plot
-              data={[
-                {
-                  x: personData.spend,
-                  y: personData.people,
-                  type: 'bar',
-                  orientation: 'h',
-                  marker: { color: '#1DB954' },
-                  text: personData.spend.map(v => formatCurrency(v)),
-                  textposition: 'outside',
-                  textfont: { color: '#000000' },
+              {...({
+                data: [
+                  {
+                    x: personData.spend,
+                    y: personData.people,
+                    type: 'bar',
+                    orientation: 'h',
+                    marker: { color: '#1DB954' },
+                    text: personData.spend.map(v => formatCurrency(v)),
+                    textposition: 'outside',
+                    textfont: { color: '#000000' },
+                  },
+                ],
+                layout: {
+                  ...chartLayout,
+                  xaxis: { 
+                    title: 'Spend ($)',
+                    range: [0, Math.max(...personData.spend) * 1.15], // Add 15% padding for labels
+                  },
+                  yaxis: { 
+                    title: 'Person',
+                    automargin: true,
+                  },
                 },
-              ]}
-            layout={{
-              ...chartLayout,
-              xaxis: { 
-                title: 'Spend ($)',
-                range: [0, Math.max(...personData.spend) * 1.15], // Add 15% padding for labels
-              },
-              yaxis: { 
-                title: 'Person',
-                automargin: true,
-              },
-            }}
-              config={{ displayModeBar: false, responsive: true }}
-              style={{ width: '100%', height: '300px' }}
-              onClick={(data: any) => {
-                if (data.points[0]?.y) {
-                  onPersonClick(String(data.points[0].y));
-                }
-              }}
+                config: { displayModeBar: false, responsive: true },
+                style: { width: '100%', height: '300px' },
+                onClick: (data: any) => {
+                  if (data.points[0]?.y) {
+                    onPersonClick(String(data.points[0].y));
+                  }
+                },
+              } as any)}
             />
           </div>
 
@@ -178,33 +146,35 @@ export function Charts({ transactions, filters, onPersonClick, onMonthClick }: C
           <div className="bg-white rounded-lg shadow p-4">
             <h3 className="text-lg font-semibold mb-4">Order Count by Person</h3>
             <Plot
-              data={[
-                {
-                  x: personData.ordersByPerson,
-                  y: personData.peopleByOrders,
-                  type: 'bar',
-                  orientation: 'h',
-                  marker: { color: '#1DB954' },
-                  text: personData.ordersByPerson.map(v => v.toString()),
-                  textposition: 'outside',
-                  textfont: { color: '#000000' },
+              {...({
+                data: [
+                  {
+                    x: personData.ordersByPerson,
+                    y: personData.peopleByOrders,
+                    type: 'bar',
+                    orientation: 'h',
+                    marker: { color: '#1DB954' },
+                    text: personData.ordersByPerson.map(v => v.toString()),
+                    textposition: 'outside',
+                    textfont: { color: '#000000' },
+                  },
+                ],
+                layout: {
+                  ...chartLayout,
+                  xaxis: { title: 'Orders' },
+                  yaxis: { 
+                    title: 'Person',
+                    automargin: true,
+                  },
                 },
-              ]}
-              layout={{
-                ...chartLayout,
-                xaxis: { title: 'Orders' },
-                yaxis: { 
-                  title: 'Person',
-                  automargin: true,
+                config: { displayModeBar: false, responsive: true },
+                style: { width: '100%', height: '300px' },
+                onClick: (data: any) => {
+                  if (data.points[0]?.y) {
+                    onPersonClick(String(data.points[0].y));
+                  }
                 },
-              }}
-              config={{ displayModeBar: false, responsive: true }}
-              style={{ width: '100%', height: '300px' }}
-              onClick={(data: any) => {
-                if (data.points[0]?.y) {
-                  onPersonClick(String(data.points[0].y));
-                }
-              }}
+              } as any)}
             />
           </div>
         </div>
@@ -217,36 +187,38 @@ export function Charts({ transactions, filters, onPersonClick, onMonthClick }: C
             Monthly Spend
           </h3>
           <Plot
-            data={[
-              {
-                x: monthlyData.months,
-                y: monthlyData.spend,
-                type: 'scatter',
-                mode: 'lines+markers',
-                marker: { 
-                  color: '#1DB954',
-                  size: 10,
+            {...({
+              data: [
+                {
+                  x: monthlyData.months,
+                  y: monthlyData.spend,
+                  type: 'scatter',
+                  mode: 'lines+markers',
+                  marker: { 
+                    color: '#1DB954',
+                    size: 10,
+                  },
+                  line: { color: '#1DB954', width: 2 },
+                  text: monthlyData.spend.map(v => formatCurrency(v)),
+                  textposition: 'top',
+                  textfont: { color: '#000000' },
                 },
-                line: { color: '#1DB954', width: 2 },
-                text: monthlyData.spend.map(v => formatCurrency(v)),
-                textposition: 'top',
-                textfont: { color: '#000000' },
+              ],
+              layout: {
+                ...chartLayout,
+                xaxis: { title: 'Month' },
+                yaxis: { title: 'Spend ($)' },
               },
-            ]}
-            layout={{
-              ...chartLayout,
-              xaxis: { title: 'Month' },
-              yaxis: { title: 'Spend ($)' },
-            }}
-            config={{ displayModeBar: false, responsive: true }}
-            style={{ width: '100%', height: '300px' }}
-            onClick={(data: any) => {
-              if (onMonthClick && data.points && data.points[0]) {
-                const clickedMonth = data.points[0].x;
-                // Toggle: if same month clicked again, clear filter
-                onMonthClick(clickedMonth);
-              }
-            }}
+              config: { displayModeBar: false, responsive: true },
+              style: { width: '100%', height: '300px' },
+              onClick: (data: any) => {
+                if (onMonthClick && data.points && data.points[0]) {
+                  const clickedMonth = data.points[0].x;
+                  // Toggle: if same month clicked again, clear filter
+                  onMonthClick(clickedMonth);
+                }
+              },
+            } as any)}
           />
         </div>
       </div>

@@ -33,6 +33,7 @@ export interface ParsedData {
     peopleDetected: string[];
     invalidDateCount: number;
     unknownPersonCount: number;
+    finalTransactionCount: number;
   };
 }
 

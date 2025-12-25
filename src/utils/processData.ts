@@ -137,9 +137,10 @@ export async function processCSVFile(file: File): Promise<ParsedData> {
   // Step 7: Remove rows where items is null or blank
   // Check both the normalized items field and the original items field
   const transactionsWithItems = transactionsNonZero.filter(row => {
-    const items = normalizeString(row.items);
+    const rowAny = row as Record<string, any>;
+    const items = normalizeString(rowAny.items);
     // Also check the original items field in case normalization missed something
-    const originalItems = String(row.items || '').trim();
+    const originalItems = String(rowAny.items || '').trim();
     return items.trim() !== '' && originalItems !== '';
   });
   
@@ -165,12 +166,12 @@ export async function processCSVFile(file: File): Promise<ParsedData> {
   // Show ALL zero total rows with details
   if (zeroTotalRows.length > 0) {
     console.log('All zero total rows:', zeroTotalRows.map(r => ({
-      order_id: r.order_id,
-      total: r.total,
-      gift: r.gift,
-      refund: r.refund,
+      order_id: (r as Record<string, any>).order_id,
+      total: (r as Record<string, any>).total,
+      gift: (r as Record<string, any>).gift,
+      refund: (r as Record<string, any>).refund,
       total_total: r.total_total,
-      items: r.items?.substring(0, 50) || '(blank)'
+      items: ((r as Record<string, any>).items as string)?.substring(0, 50) || '(blank)'
     })));
   }
   
@@ -182,33 +183,34 @@ export async function processCSVFile(file: File): Promise<ParsedData> {
   console.log(`Rows kept with small total_total (< $0.50): ${keptRowsWithSmallTotal.length}`);
   if (keptRowsWithSmallTotal.length > 0) {
     console.log('Rows with small total_total:', keptRowsWithSmallTotal.map(r => ({
-      order_id: r.order_id,
-      total: r.total,
-      gift: r.gift,
-      refund: r.refund,
-      calculated_total_total: (parseMoney(r.total) + parseMoney(r.gift) - parseMoney(r.refund)).toFixed(2),
+      order_id: (r as Record<string, any>).order_id,
+      total: (r as Record<string, any>).total,
+      gift: (r as Record<string, any>).gift,
+      refund: (r as Record<string, any>).refund,
+      calculated_total_total: (parseMoney((r as Record<string, any>).total) + parseMoney((r as Record<string, any>).gift) - parseMoney((r as Record<string, any>).refund)).toFixed(2),
       stored_total_total: r.total_total,
-      items: r.items?.substring(0, 50) || '(blank)'
+      items: ((r as Record<string, any>).items as string)?.substring(0, 50) || '(blank)'
     })));
   }
   
   const blankItemsRows = transactionsNonZero.filter(row => {
-    const items = normalizeString(row.items);
-    const originalItems = String(row.items || '').trim();
+    const items = normalizeString((row as Record<string, any>).items);
+    const originalItems = String((row as Record<string, any>).items || '').trim();
     return items.trim() === '' || originalItems === '';
   });
   console.log(`Rows with blank items (filtered out): ${blankItemsRows.length}`);
   if (blankItemsRows.length > 0 && blankItemsRows.length <= 10) {
     console.log('Sample blank items rows:', blankItemsRows.map(r => ({
-      order_id: r.order_id,
-      items: r.items,
+      order_id: (r as Record<string, any>).order_id,
+      items: (r as Record<string, any>).items,
       total_total: r.total_total
     })));
   }
   
   // Step 8: Add refund_boolean column
   const transactionsWithRefundBoolean = transactionsWithItems.map(row => {
-    const refund = parseMoney(row.refund);
+    const rowAny = row as Record<string, any>;
+    const refund = parseMoney(rowAny.refund);
     const refund_boolean = refund !== 0 && refund !== null;
     
     return {
@@ -218,7 +220,7 @@ export async function processCSVFile(file: File): Promise<ParsedData> {
   });
   
   // Step 9: Populate missing "to" field using payments and cards lookup
-  populateToField(transactionsWithRefundBoolean, cards);
+  populateToField(transactionsWithRefundBoolean as any, cards);
   
   // Step 10: Now process into Transaction objects and assign people
   const processedTransactions: Transaction[] = [];
@@ -226,14 +228,12 @@ export async function processCSVFile(file: File): Promise<ParsedData> {
   let unknownPersonCount = 0;
   const peopleSet = new Set<string>();
   
-  // Build card name list for person assignment
-  const cardNames = cards.map(c => c.name).filter(n => n.trim() !== '');
-  
   for (const row of transactionsWithRefundBoolean) {
+    const rowAny = row as Record<string, any>;
     // Parse date
     let date: Date | null = null;
-    if (row.date) {
-      const parsed = parse(row.date, 'yyyy-MM-dd', new Date());
+    if (rowAny.date) {
+      const parsed = parse(rowAny.date, 'yyyy-MM-dd', new Date());
       if (isNaN(parsed.getTime())) {
         invalidDateCount++;
       } else {
@@ -242,16 +242,15 @@ export async function processCSVFile(file: File): Promise<ParsedData> {
     }
     
     // Parse money columns
-    const total = parseMoney(row.total);
-    const refund = parseMoney(row.refund);
-    const gift = parseMoney(row.gift);
+    const total = parseMoney(rowAny.total);
+    const refund = parseMoney(rowAny.refund);
+    const gift = parseMoney(rowAny.gift);
     const total_total = row.total_total as number;
-    const refund_boolean = row.refund_boolean as boolean;
     
-    // Assign person - use the "to" field directly (it should be populated by step 7)
+    // Assign person - use the "to" field directly (it should be populated by step 9)
     // Capitalize it properly for display
     let person = 'Unknown';
-    const to = normalizeString(row.to);
+    const to = normalizeString(rowAny.to);
     if (to && to.trim() !== '') {
       // Capitalize first letter of each word
       person = to
@@ -260,7 +259,7 @@ export async function processCSVFile(file: File): Promise<ParsedData> {
         .join(' ');
     } else {
       // If "to" is still blank after population attempt, try payments field as fallback
-      const payments = normalizeString(row.payments);
+      const payments = normalizeString(rowAny.payments);
       if (payments) {
         const last4 = extractLast4FromPayments(payments);
         if (last4) {
@@ -287,19 +286,19 @@ export async function processCSVFile(file: File): Promise<ParsedData> {
     }
     
     // Infer category
-    const category = inferCategory(row.items, row.category);
+    const category = inferCategory(rowAny.items || '', rowAny.category || '');
     
     // Build transaction
     const transaction: Transaction = {
-      order_id: row.order_id || '',
-      order_url: row.order_url || '',
-      items: row.items || '',
+      order_id: rowAny.order_id || '',
+      order_url: rowAny.order_url || '',
+      items: rowAny.items || '',
       to: to || '',
       date,
       total,
       gift,
       refund,
-      payments: row.payments || '',
+      payments: rowAny.payments || '',
       person,
       is_return: isReturn,
       net_spend: netSpend,
