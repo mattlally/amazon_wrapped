@@ -6,7 +6,7 @@ import react from '@vitejs/plugin-react'
 // For local dev: set base to "/"
 export default defineConfig({
   plugins: [react()],
-  base: process.env.NODE_ENV === 'production' ? '/amazon-wrapped-web/' : '/',
+  base: process.env.NODE_ENV === 'production' ? '/amazon_wrapped/' : '/',
   optimizeDeps: {
     include: ['plotly.js', 'react-plotly.js', 'buffer'],
   },
