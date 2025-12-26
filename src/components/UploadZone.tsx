@@ -2,10 +2,11 @@ import { useCallback, useState } from 'react';
 
 interface UploadZoneProps {
   onFileUpload: (file: File) => void;
+  onSampleDataLoad?: () => void;
   isProcessing: boolean;
 }
 
-export function UploadZone({ onFileUpload, isProcessing }: UploadZoneProps) {
+export function UploadZone({ onFileUpload, onSampleDataLoad, isProcessing }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -78,6 +79,20 @@ export function UploadZone({ onFileUpload, isProcessing }: UploadZoneProps) {
           </p>
         </div>
       </div>
+      {onSampleDataLoad && (
+        <div className="mt-6 text-center">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSampleDataLoad();
+            }}
+            disabled={isProcessing}
+            className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Preview with Sample Data
+          </button>
+        </div>
+      )}
     </div>
   );
 }

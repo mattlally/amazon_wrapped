@@ -37,6 +37,26 @@ function App() {
     }
   };
 
+  const handleSampleDataLoad = async () => {
+    setIsProcessing(true);
+    try {
+      // Fetch the sample CSV from the public folder
+      // Vite serves public files from the base path automatically
+      const basePath = import.meta.env.BASE_URL;
+      const response = await fetch(`${basePath}sample-data.csv`);
+      if (!response.ok) {
+        throw new Error('Failed to load sample data');
+      }
+      const blob = await response.blob();
+      const file = new File([blob], 'sample-data.csv', { type: 'text/csv' });
+      await handleFileUpload(file);
+    } catch (error) {
+      console.error('Error loading sample data:', error);
+      alert('Error loading sample data. Please check the console for details.');
+      setIsProcessing(false);
+    }
+  };
+
 
   const kpis = useMemo((): KpiData => {
     if (!parsedData) {
@@ -90,7 +110,11 @@ function App() {
               Upload your Amazon order history CSV to see your spending insights
             </p>
           </div>
-          <UploadZone onFileUpload={handleFileUpload} isProcessing={isProcessing} />
+              <UploadZone 
+                onFileUpload={handleFileUpload} 
+                onSampleDataLoad={handleSampleDataLoad}
+                isProcessing={isProcessing} 
+              />
           {isProcessing && (
             <div className="mt-4 text-center text-gray-600">
               Processing your data...
