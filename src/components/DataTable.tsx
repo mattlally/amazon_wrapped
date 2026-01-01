@@ -141,9 +141,6 @@ export function DataTable({ transactions }: DataTableProps) {
               >
                 Return <SortIcon field="is_return" />
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Payments
-              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -177,9 +174,6 @@ export function DataTable({ transactions }: DataTableProps) {
                       No
                     </span>
                   )}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-900 max-w-xs truncate">
-                  {transaction.payments}
                 </td>
               </tr>
             ))}
